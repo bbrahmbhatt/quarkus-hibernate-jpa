@@ -1,0 +1,425 @@
+CASE-1 :  All 3 Api End points start failing. Complaining about blockTypeCategoryService  
+( using client1 and mapper bean )
+-----------------------------------------------------------------------------
+Here is ERROR :
+
+2023-01-23 07:57:15,214 ERROR [io.qua.ver.htt.run.QuarkusErrorHandler] (executor-thread-0) HTTP Request to /quarkus/benefit/api/costshare/masterCustomerSetService?type=master failed, error id: e04599c8-6688-48b9-87b1-11d555b205c8-1: java.lang.RuntimeException: Error injecting demo.rest.clients.BlockTypeCategoryService demo.rest.controllers.BlockHeaderController.blockTypeCategoryService
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:476)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:489)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:279)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:276)
+        at io.quarkus.arc.runtime.BeanContainerImpl$1.create(BeanContainerImpl.java:46)
+        at io.quarkus.resteasy.reactive.common.runtime.ArcBeanFactory.createInstance(ArcBeanFactory.java:27)
+        at org.jboss.resteasy.reactive.server.handlers.InstanceHandler.handle(InstanceHandler.java:26)
+        at io.quarkus.resteasy.reactive.server.runtime.QuarkusResteasyReactiveRequestContext.invokeHandler(QuarkusResteasyReactiveRequestContext.java:112)
+        at org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext.run(AbstractResteasyReactiveContext.java:145)
+        at io.quarkus.vertx.core.runtime.VertxCoreRecorder$14.runWith(VertxCoreRecorder.java:576)
+        at org.jboss.threads.EnhancedQueueExecutor$Task.run(EnhancedQueueExecutor.java:2449)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1478)
+        at org.jboss.threads.DelegatingRunnable.run(DelegatingRunnable.java:29)
+        at org.jboss.threads.ThreadLocalResettingRunnable.run(ThreadLocalResettingRunnable.java:29)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.lang.IllegalStateException: Expected RestClientBuilder to be an instance of io.quarkus.rest.client.reactive.runtime.RestClientBuilderImpl, got io.quarkus.restclient.runtime.QuarkusRestClientBuilder
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.build(RestClientCDIDelegateBuilder.java:61)
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.createDelegate(RestClientCDIDelegateBuilder.java:42)
+        at io.quarkus.rest.client.reactive.runtime.RestClientReactiveCDIWrapperBase.<init>(RestClientReactiveCDIWrapperBase.java:20)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper.<init>(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        ... 26 more
+
+Here is Controller Code for BlockHeaderController :
+
+// This is jpa repo
+@Inject
+BlockHeaderRepository blockHeaderRepository;
+
+// This is helper bean 
+// (incoming request dto to db pojo bean) 
+// and 
+// (db pojo bean to outgoing response dto bean) conversion 
+@Inject
+BlockHeaderMapper blockHeaderMapper;
+
+// Rest Client:1 (Based on MicroProfile Reactive)
+@Inject
+@RestClient
+MasterCustomerSetService masterCustomerSetService;
+
+// Rest Client:2 (Based on MicroProfile Reactive)
+@Inject
+@RestClient
+BlockTypeCategoryService blockTypeCategoryService;
+
+@GetMapping("/masterCustomerSetService")
+public List<CustomerSet> getMasterCustomerSetByTypeAndResource(@RequestParam("type") String customerSetType) {
+	return masterCustomerSetService
+			.getMasterCustomerSetByTypeAndResource(customerSetType);
+}
+
+@GetMapping("/blockTypeCategoryService")
+public List<BlockTypeCategoryDTO> getAllBlockTypes() {
+	return blockTypeCategoryService.getAllBlockTypes();
+}
+
+// If I only use one client masterCustomerSetService
+@PostMapping("/blockheader")
+public BlockHeaderDTO addBlockHeader(BlockHeaderDTO dto) throws Exception {
+	BlockHeader inputEntity = blockHeaderMapper.toEntity(dto);
+	
+	if (dto.getMasterCustomerSetLongNm()!=null &&
+            !"".equals(dto.getMasterCustomerSetLongNm().trim())) {
+		Optional<CustomerSet> customer =
+				masterCustomerSetService.getMasterCustomerSetByName(
+						dto.getMasterCustomerSetLongNm(), "master");
+		if (customer.isPresent()) {
+			inputEntity.setMasterCustomerSetId(customer.get().getCustomerSetId());
+		}
+	}
+
+	OffsetDateTime now = OffsetDateTime.now();
+	inputEntity.setProcessCreateTs(now);
+	inputEntity.setProcessCreateByUserId("CreateUser");
+	inputEntity.setProcessCreateByProgramId("default");
+
+	return dto;
+}
+
+CASE-2 : All 3 Api End points start failing. Complaining about blockTypeCategoryService
+( using client1, client2 and mapper bean )
+----------------------------------------------------------------------------------------
+Here is ERROR :
+2023-01-23 08:11:32,267 ERROR [io.qua.ver.htt.run.QuarkusErrorHandler] (executor-thread-0) HTTP Request to /quarkus/benefit/api/costshare/masterCustomerSetService?type=master failed, error id: 2661ea16-e367-487f-aa53-2156921aaa8e-1: java.lang.RuntimeException: Error injecting demo.rest.clients.BlockTypeCategoryService demo.rest.controllers.BlockHeaderController.blockTypeCategoryService
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:476)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:489)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:279)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:276)
+        at io.quarkus.arc.runtime.BeanContainerImpl$1.create(BeanContainerImpl.java:46)
+        at io.quarkus.resteasy.reactive.common.runtime.ArcBeanFactory.createInstance(ArcBeanFactory.java:27)
+        at org.jboss.resteasy.reactive.server.handlers.InstanceHandler.handle(InstanceHandler.java:26)
+        at io.quarkus.resteasy.reactive.server.runtime.QuarkusResteasyReactiveRequestContext.invokeHandler(QuarkusResteasyReactiveRequestContext.java:112)
+        at org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext.run(AbstractResteasyReactiveContext.java:145)
+        at io.quarkus.vertx.core.runtime.VertxCoreRecorder$14.runWith(VertxCoreRecorder.java:576)
+        at org.jboss.threads.EnhancedQueueExecutor$Task.run(EnhancedQueueExecutor.java:2449)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1478)
+        at org.jboss.threads.DelegatingRunnable.run(DelegatingRunnable.java:29)
+        at org.jboss.threads.ThreadLocalResettingRunnable.run(ThreadLocalResettingRunnable.java:29)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.lang.IllegalStateException: Expected RestClientBuilder to be an instance of io.quarkus.rest.client.reactive.runtime.RestClientBuilderImpl, got io.quarkus.restclient.runtime.QuarkusRestClientBuilder
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.build(RestClientCDIDelegateBuilder.java:61)
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.createDelegate(RestClientCDIDelegateBuilder.java:42)
+        at io.quarkus.rest.client.reactive.runtime.RestClientReactiveCDIWrapperBase.<init>(RestClientReactiveCDIWrapperBase.java:20)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper.<init>(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        ... 26 more
+
+Here is Controller Code for BlockHeaderController :
+
+
+// This is jpa repo
+@Inject
+BlockHeaderRepository blockHeaderRepository;
+
+// This is helper bean 
+// (incoming request dto to db pojo bean) 
+// and 
+// (db pojo bean to outgoing response dto bean) conversion 
+@Inject
+BlockHeaderMapper blockHeaderMapper;
+
+// Rest Client:1 (Based on MicroProfile Reactive)
+@Inject
+@RestClient
+MasterCustomerSetService masterCustomerSetService;
+
+// Rest Client:2 (Based on MicroProfile Reactive)
+@Inject
+@RestClient
+BlockTypeCategoryService blockTypeCategoryService;
+
+@GetMapping("/masterCustomerSetService")
+    public List<CustomerSet> getMasterCustomerSetByTypeAndResource(@RequestParam("type") String customerSetType) {
+        return masterCustomerSetService
+                .getMasterCustomerSetByTypeAndResource(customerSetType);
+    }
+
+    @GetMapping("/blockTypeCategoryService")
+    public List<BlockTypeCategoryDTO> getAllBlockTypes() {
+        return blockTypeCategoryService.getAllBlockTypes();
+    }
+
+    @PostMapping("/blockheader")
+    public BlockHeaderDTO addBlockHeader(BlockHeaderDTO dto) throws Exception {
+        BlockHeader inputEntity = blockHeaderMapper.toEntity(dto);
+
+        if (dto.getMasterCustomerSetLongNm()!=null &&
+            !"".equals(dto.getMasterCustomerSetLongNm().trim())) {
+            Optional<CustomerSet> customer =
+                    masterCustomerSetService.getMasterCustomerSetByName(
+                            dto.getMasterCustomerSetLongNm(), "master");
+            if (customer.isPresent()) {
+                inputEntity.setMasterCustomerSetId(customer.get().getCustomerSetId());
+            }
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        inputEntity.setProcessCreateTs(now);
+        inputEntity.setProcessCreateByUserId("CreateUser");
+        inputEntity.setProcessCreateByProgramId("default");
+
+        // Trying to call client 2 : blockTypeCategoryService ( blew up the code )
+        Optional<BlockTypeCategoryDTO> blockTypeRec =
+                blockTypeCategoryService.getBlockTypeByCategoryAndType(
+                        inputEntity.getBlockTypeCode(), "Costshare");
+
+        return dto;
+
+    }
+
+CASE-3 : All 3 Api End points start failing. Complaining about blockTypeCategoryService
+CASE-3 detail : I am not even using blockTypeCategoryService 
+( using client1, client2, mapper bean, and jpa pojo )
+----------------------------------------------------------------------------------------
+
+Here is ERROR
+2023-01-23 08:15:29,809 ERROR [io.qua.ver.htt.run.QuarkusErrorHandler] (executor-thread-0) HTTP Request to /quarkus/benefit/api/costshare/blockheader failed, error id: b67b2a1f-d0b9-47cb-9217-0a4031ecb736-1: java.lang.RuntimeException: Error injecting demo.rest.clients.BlockTypeCategoryService demo.rest.controllers.BlockHeaderController.blockTypeCategoryService
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:476)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:489)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:279)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:276)
+        at io.quarkus.arc.runtime.BeanContainerImpl$1.create(BeanContainerImpl.java:46)
+        at io.quarkus.resteasy.reactive.common.runtime.ArcBeanFactory.createInstance(ArcBeanFactory.java:27)
+        at org.jboss.resteasy.reactive.server.handlers.InstanceHandler.handle(InstanceHandler.java:26)
+        at io.quarkus.resteasy.reactive.server.runtime.QuarkusResteasyReactiveRequestContext.invokeHandler(QuarkusResteasyReactiveRequestContext.java:112)
+        at org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext.run(AbstractResteasyReactiveContext.java:145)
+        at io.quarkus.vertx.core.runtime.VertxCoreRecorder$14.runWith(VertxCoreRecorder.java:576)
+        at org.jboss.threads.EnhancedQueueExecutor$Task.run(EnhancedQueueExecutor.java:2449)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1478)
+        at org.jboss.threads.DelegatingRunnable.run(DelegatingRunnable.java:29)
+        at org.jboss.threads.ThreadLocalResettingRunnable.run(ThreadLocalResettingRunnable.java:29)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.lang.IllegalStateException: Expected RestClientBuilder to be an instance of io.quarkus.rest.client.reactive.runtime.RestClientBuilderImpl, got io.quarkus.restclient.runtime.QuarkusRestClientBuilder
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.build(RestClientCDIDelegateBuilder.java:61)
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.createDelegate(RestClientCDIDelegateBuilder.java:42)
+        at io.quarkus.rest.client.reactive.runtime.RestClientReactiveCDIWrapperBase.<init>(RestClientReactiveCDIWrapperBase.java:20)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper.<init>(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        ... 26 more
+
+Here is Controller Code :
+
+@Inject
+BlockHeaderRepository blockHeaderRepository;
+
+@Inject
+BlockHeaderMapper blockHeaderMapper;
+
+@Inject
+@RestClient
+MasterCustomerSetService masterCustomerSetService;
+
+@Inject
+@RestClient
+BlockTypeCategoryService blockTypeCategoryService;
+
+@GetMapping("/masterCustomerSetService")
+public List<CustomerSet> getMasterCustomerSetByTypeAndResource(@RequestParam("type") String customerSetType) {
+	return masterCustomerSetService
+			.getMasterCustomerSetByTypeAndResource(customerSetType);
+}
+
+@GetMapping("/blockTypeCategoryService")
+public List<BlockTypeCategoryDTO> getAllBlockTypes() {
+	return blockTypeCategoryService.getAllBlockTypes();
+}
+
+@PostMapping("/blockheader")
+public BlockHeaderDTO addBlockHeader(BlockHeaderDTO dto) throws Exception {
+	BlockHeader inputEntity = blockHeaderMapper.toEntity(dto);
+
+	if (dto.getMasterCustomerSetLongNm()!=null &&
+            !"".equals(dto.getMasterCustomerSetLongNm().trim())) {
+		Optional<CustomerSet> customer =
+				masterCustomerSetService.getMasterCustomerSetByName(
+						dto.getMasterCustomerSetLongNm(), "master");
+		if (customer.isPresent()) {
+			inputEntity.setMasterCustomerSetId(customer.get().getCustomerSetId());
+		}
+	}
+
+	OffsetDateTime now = OffsetDateTime.now();
+	inputEntity.setProcessCreateTs(now);
+	inputEntity.setProcessCreateByUserId("CreateUser");
+	inputEntity.setProcessCreateByProgramId("default");
+
+	// Instead of using client2, I am testing if JPA bean works for lookup
+	Optional<BlockHeader> foundBlockHeader =
+			blockHeaderRepository.findByBlockTypeCategoryIdAndLongName(dto.getBlockTypeCategoryId(), dto.getLongName());
+	BlockHeader blockHeader = foundBlockHeader.isPresent() ? foundBlockHeader.get() : null;
+	if(blockHeader != null) {
+		BlockHeaderDTO blockHeaderDTO = blockHeaderMapper.toBlockDTO(blockHeader);
+		return blockHeaderDTO;
+	} else {
+		throw new Exception("No Block Header Found!");
+	}
+	
+}
+
+CASE-4 : All 3 Api End points start failing. Complaining about blockTypeCategoryService
+CASE-4 detail : I am not even using blockTypeCategoryService 
+( I am only using jpa pojo blockHeaderRepository )
+--------------------------------------------------
+
+Here is ERROR
+2023-01-23 08:18:35,543 ERROR [io.qua.ver.htt.run.QuarkusErrorHandler] (executor-thread-0) HTTP Request to /quarkus/benefit/api/costshare/masterCustomerSetService?type=master failed, error id: e693a19c-e414-43c8-aa26-08e125006bd9-1: java.lang.RuntimeException: Error injecting demo.rest.clients.BlockTypeCategoryService demo.rest.controllers.BlockHeaderController.blockTypeCategoryService
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at demo.rest.controllers.BlockHeaderController_Bean.get(Unknown Source)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:476)
+        at io.quarkus.arc.impl.ArcContainerImpl.beanInstanceHandle(ArcContainerImpl.java:489)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:279)
+        at io.quarkus.arc.impl.ArcContainerImpl$2.get(ArcContainerImpl.java:276)
+        at io.quarkus.arc.runtime.BeanContainerImpl$1.create(BeanContainerImpl.java:46)
+        at io.quarkus.resteasy.reactive.common.runtime.ArcBeanFactory.createInstance(ArcBeanFactory.java:27)
+        at org.jboss.resteasy.reactive.server.handlers.InstanceHandler.handle(InstanceHandler.java:26)
+        at io.quarkus.resteasy.reactive.server.runtime.QuarkusResteasyReactiveRequestContext.invokeHandler(QuarkusResteasyReactiveRequestContext.java:112)
+        at org.jboss.resteasy.reactive.common.core.AbstractResteasyReactiveContext.run(AbstractResteasyReactiveContext.java:145)
+        at io.quarkus.vertx.core.runtime.VertxCoreRecorder$14.runWith(VertxCoreRecorder.java:576)
+        at org.jboss.threads.EnhancedQueueExecutor$Task.run(EnhancedQueueExecutor.java:2449)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1478)
+        at org.jboss.threads.DelegatingRunnable.run(DelegatingRunnable.java:29)
+        at org.jboss.threads.ThreadLocalResettingRunnable.run(ThreadLocalResettingRunnable.java:29)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:834)
+Caused by: java.lang.IllegalStateException: Expected RestClientBuilder to be an instance of io.quarkus.rest.client.reactive.runtime.RestClientBuilderImpl, got io.quarkus.restclient.runtime.QuarkusRestClientBuilder
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.build(RestClientCDIDelegateBuilder.java:61)
+        at io.quarkus.rest.client.reactive.runtime.RestClientCDIDelegateBuilder.createDelegate(RestClientCDIDelegateBuilder.java:42)
+        at io.quarkus.rest.client.reactive.runtime.RestClientReactiveCDIWrapperBase.<init>(RestClientReactiveCDIWrapperBase.java:20)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper.<init>(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.create(Unknown Source)
+        at io.quarkus.arc.impl.AbstractSharedContext.createInstanceHandle(AbstractSharedContext.java:113)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:37)
+        at io.quarkus.arc.impl.AbstractSharedContext$1.get(AbstractSharedContext.java:34)
+        at io.quarkus.arc.impl.LazyValue.get(LazyValue.java:26)
+        at io.quarkus.arc.impl.ComputingCache.computeIfAbsent(ComputingCache.java:69)
+        at io.quarkus.arc.impl.AbstractSharedContext.get(AbstractSharedContext.java:34)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        at demo.rest.clients.BlockTypeCategoryService$$CDIWrapper_Bean.get(Unknown Source)
+        ... 26 more
+
+
+
+Here is Controller Code :
+
+
+@Inject
+BlockHeaderRepository blockHeaderRepository;
+
+@Inject
+BlockHeaderMapper blockHeaderMapper;
+
+@Inject
+@RestClient
+MasterCustomerSetService masterCustomerSetService;
+
+@Inject
+@RestClient
+BlockTypeCategoryService blockTypeCategoryService;
+
+@GetMapping("/masterCustomerSetService")
+public List<CustomerSet> getMasterCustomerSetByTypeAndResource(@RequestParam("type") String customerSetType) {
+	return masterCustomerSetService
+			.getMasterCustomerSetByTypeAndResource(customerSetType);
+}
+
+@GetMapping("/blockTypeCategoryService")
+public List<BlockTypeCategoryDTO> getAllBlockTypes() {
+	return blockTypeCategoryService.getAllBlockTypes();
+}
+
+@PostMapping("/blockheader")
+public BlockHeaderDTO addBlockHeader(BlockHeaderDTO dto) throws Exception {
+	BlockHeader inputEntity = blockHeaderMapper.toEntity(dto);
+
+	Optional<BlockHeader> entityFound = blockHeaderRepository
+			.findByBlockTypeCategoryIdAndLongName(
+					inputEntity.getBlockTypeCategoryId(),
+					inputEntity.getLongName());
+
+	BlockHeader blockHeader = entityFound.isPresent() ? entityFound.get() : null;
+	if(blockHeader != null) {
+		BlockHeaderDTO blockHeaderDTO = blockHeaderMapper.toBlockDTO(blockHeader);
+		return blockHeaderDTO;
+	} else {
+		throw new Exception("No Block Header Found!");
+	}
+
+}
+
